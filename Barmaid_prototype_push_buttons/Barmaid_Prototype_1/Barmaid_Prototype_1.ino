@@ -28,9 +28,9 @@ long station2 = 940;
 long station3 = 1460;
 long station4 = 1990;
 long station5 = 2510;
-long station6 = 2975
+long station6 = 2975;
 
-int sequence1 = 0;
+int sequence = 0;
 
 //HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
@@ -97,8 +97,11 @@ void setup() {
   stepper.disableOutputs();
 
   // VALVE SETUP
+  pinMode(valve1, OUTPUT);
   pinMode(valve2, OUTPUT);
+  pinMode(valve3, OUTPUT);
   pinMode(valve4, OUTPUT);
+  pinMode(valve5, OUTPUT);
   pinMode(RST, INPUT);
   pinMode(endPin, INPUT);
   //attachInterrupt (0, RESET, RISING);
@@ -107,12 +110,21 @@ void setup() {
 void loop() {
   static boolean newDataReady = 0;
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
-
+  
+  if (stepper.currentPosition() != station1 || weight > 10) {
+    digitalWrite(valve1, HIGH);
+  }
   if (stepper.currentPosition() != station2 || weight > 10) {
     digitalWrite(valve2, HIGH);
   }
+  if (stepper.currentPosition() != station3 || weight > 10) {
+    digitalWrite(valve3, HIGH);
+  }
   if (stepper.currentPosition() != station4 || weight > 10) {
     digitalWrite(valve4, HIGH);
+  }
+  if (stepper.currentPosition() != station5 || weight > 10) {
+    digitalWrite(valve5, HIGH);
   }
 
   // check for new data/start next conversion:
@@ -127,14 +139,14 @@ void loop() {
       newDataReady = 0;
       t = millis();
 
-      if (digitalRead(pushBottom) == HIGH) { // black button
+      if (digitalRead(pushTop) == HIGH) { // red button: sequence 1
         DRIVE(station4);
-        sequence1 = 1;
+        sequence = 1;
         RESET();
       }
-      if (digitalRead(pushTop) == HIGH) { // red button
-        DRIVE(station4);
-        sequence1 = 1;
+      if (digitalRead(pushBottom) == HIGH) { // black button: sequence 2
+        DRIVE(station5);
+        sequence = 2;
         RESET();
       }
 
@@ -144,7 +156,7 @@ void loop() {
 
       // sequence 1: station4 -> station2
       // note the order of operation is reversed, this is due to generalized if statements that simplifies variable manipulations
-      if (sequence1 = 1) {
+      if (sequence = 1) {
         if (stepper.currentPosition() == station2 && weight < 10) { // step 2
           digitalWrite(valve2, LOW);
         }
@@ -152,7 +164,7 @@ void loop() {
           digitalWrite(valve2, HIGH);
           delay(5000); // wait for the leakage to end
           DRIVE(origin);
-          sequence1 = 0;
+          sequence = 0;
           RESET();
         }
         if (stepper.currentPosition() == station4 && weight < 10) { // step 1
@@ -167,7 +179,39 @@ void loop() {
       }
     // sequence 1: 4 -> 2
 
-    
+    // sequence 2: station 5 -> station 1 -> station 3
+      // note the order of operation is reversed, this is due to generalized if statements that simplifies variable manipulations
+      if (sequence = 2) {
+        if (stepper.currentPosition() == station3 && weight < 10) { // step 3 (station 3)
+          digitalWrite(valve3, LOW);
+        }
+        else if (stepper.currentPosition() == station3 && weight > 10) {
+          digitalWrite(valve3, HIGH);
+          delay(5000); // wait for the leakage to end
+          DRIVE(origin);
+          sequence = 0;
+          RESET();
+        }
+        if (stepper.currentPosition() == station1 && weight < 10) { // step 2 (station 1)
+          digitalWrite(valve1, LOW);
+        }
+        else if (stepper.currentPosition() == station1 && weight > 10) {
+          digitalWrite(valve1, HIGH);
+          delay(5000); // wait for the leakage to end
+          DRIVE(station3);
+          RESET();
+        }
+        if (stepper.currentPosition() == station5 && weight < 10) { // step 1 (station 5)
+          digitalWrite(valve5, LOW);
+        }
+        else if (stepper.currentPosition() == station5 && weight > 10) {
+          digitalWrite(valve5, HIGH);
+          delay(5000); // wait for the leakage to end
+          DRIVE(station1);
+          RESET();
+        }
+      }
+    // sequence 2: station 5 -> station 1 -> station 3
     }
   }
 }
