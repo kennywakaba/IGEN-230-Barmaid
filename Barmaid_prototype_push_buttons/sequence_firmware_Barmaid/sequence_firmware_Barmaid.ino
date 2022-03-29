@@ -143,9 +143,27 @@ void loop() {
   sequence_main();
 }
 
-void sequence_main() {
+void loadcell() {
   static boolean newDataReady = 0;
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
+  
+  if (LoadCell.update()) newDataReady = true;
+
+  // get smoothed value from the dataset:
+  if (newDataReady) {
+    if (millis() > t + serialPrintInterval) {
+      weight = LoadCell.getData();
+      Serial.print("Load_cell output val: ");
+      Serial.print(weight);
+      Serial.print("                Sequence: ");
+      Serial.println(sequence);
+      newDataReady = 0;
+      t = millis();
+    }
+  }
+}
+
+void sequence_main() {
 
   //  if (stepper.currentPosition() != station1 || weight > 10) {
   //    digitalWrite(valve1, HIGH);
@@ -163,82 +181,67 @@ void sequence_main() {
   //    digitalWrite(valve5, HIGH);
   //  }
 
-  //while (sequence != 0) {
-  // check for new data/start next conversion:
-  if (LoadCell.update()) newDataReady = true;
-
   // get smoothed value from the dataset:
-  if (newDataReady) {
-    if (millis() > t + serialPrintInterval) {
-      weight = LoadCell.getData();
-      Serial.print("Load_cell output val: ");
-      Serial.print(weight);
-      Serial.print("                Sequence: ");
-      Serial.println(sequence);
-      newDataReady = 0;
-      t = millis();
+  if (digitalRead(endPin) == HIGH) { // indicating the origin
+    //ENDSTOP();
+  }
 
-      if (digitalRead(endPin) == HIGH) { // indicating the origin
-        //ENDSTOP();
-      }
-
-      // sequence 1: station4 -> station2
-      // note the order of operation is reversed, this is due to generalized if statements that simplifies variable manipulations
-      if (sequence == 1) {
-        if (stepper.currentPosition() == station1 && weight < 10) { // step 3 (station 3)
-          digitalWrite(valve1, LOW);
-        }
-        else if (stepper.currentPosition() == station1 && weight > 10) {
-          digitalWrite(valve1, HIGH);
-          delay(5000); // wait for the leakage to end
-          DRIVE(origin);
-          sequence = 0;
-          RESET();
-        }
-        if (stepper.currentPosition() == station4 && weight < 10) { // step 1 (station 5)
-          digitalWrite(valve4, LOW);
-        }
-        else if (stepper.currentPosition() == station4 && weight > 10) {
-          digitalWrite(valve4, HIGH);
-          delay(5000); // wait for the leakage to end
-          DRIVE(station1);
-          RESET();
-        }
-      }
-
-      // sequence 2: station 5 -> station 1 -> station 3
-      // note the order of operation is reversed, this is due to generalized if statements that simplifies variable manipulations
-      if (sequence == 2) {
-        if (stepper.currentPosition() == station3 && weight < 10) { // step 3 (station 3)
-          digitalWrite(valve3, LOW);
-        }
-        else if (stepper.currentPosition() == station3 && weight > 10) {
-          digitalWrite(valve3, HIGH);
-          delay(5000); // wait for the leakage to end
-          DRIVE(origin);
-          sequence = 0;
-          RESET();
-        }
-        if (stepper.currentPosition() == station1 && weight < 10) { // step 2 (station 1)
-          digitalWrite(valve1, LOW);
-        }
-        else if (stepper.currentPosition() == station1 && weight > 10) {
-          digitalWrite(valve1, HIGH);
-          delay(5000); // wait for the leakage to end
-          DRIVE(station3);
-          RESET();
-        }
-        if (stepper.currentPosition() == station5 && weight < 10) { // step 1 (station 5)
-          digitalWrite(valve5, LOW);
-        }
-        else if (stepper.currentPosition() == station5 && weight > 10) {
-          digitalWrite(valve5, HIGH);
-          delay(5000); // wait for the leakage to end
-          DRIVE(station1);
-          RESET();
-        }
-      }
-      // sequence 2: station 5 -> station 1 -> station 3
+  // sequence 1: station4 -> station2
+  // note the order of operation is reversed, this is due to generalized if statements that simplifies variable manipulations
+  if (sequence == 1) {
+    loadcell();
+    if (stepper.currentPosition() == station1 && weight < 10) { // step 3 (station 3)
+      digitalWrite(valve1, LOW);
+    }
+    else if (stepper.currentPosition() == station1 && weight > 10) {
+      digitalWrite(valve1, HIGH);
+      delay(5000); // wait for the leakage to end
+      DRIVE(origin);
+      sequence = 0;
+      RESET();
+    }
+    if (stepper.currentPosition() == station4 && weight < 10) { // step 1 (station 5)
+      digitalWrite(valve4, LOW);
+    }
+    else if (stepper.currentPosition() == station4 && weight > 10) {
+      digitalWrite(valve4, HIGH);
+      delay(5000); // wait for the leakage to end
+      DRIVE(station1);
+      RESET();
     }
   }
+
+  // sequence 2: station 5 -> station 1 -> station 3
+  // note the order of operation is reversed, this is due to generalized if statements that simplifies variable manipulations
+  if (sequence == 2) {
+    if (stepper.currentPosition() == station3 && weight < 10) { // step 3 (station 3)
+      digitalWrite(valve3, LOW);
+    }
+    else if (stepper.currentPosition() == station3 && weight > 10) {
+      digitalWrite(valve3, HIGH);
+      delay(5000); // wait for the leakage to end
+      DRIVE(origin);
+      sequence = 0;
+      RESET();
+    }
+    if (stepper.currentPosition() == station1 && weight < 10) { // step 2 (station 1)
+      digitalWrite(valve1, LOW);
+    }
+    else if (stepper.currentPosition() == station1 && weight > 10) {
+      digitalWrite(valve1, HIGH);
+      delay(5000); // wait for the leakage to end
+      DRIVE(station3);
+      RESET();
+    }
+    if (stepper.currentPosition() == station5 && weight < 10) { // step 1 (station 5)
+      digitalWrite(valve5, LOW);
+    }
+    else if (stepper.currentPosition() == station5 && weight > 10) {
+      digitalWrite(valve5, HIGH);
+      delay(5000); // wait for the leakage to end
+      DRIVE(station1);
+      RESET();
+    }
+  }
+  // sequence 2: station 5 -> station 1 -> station 3
 }
